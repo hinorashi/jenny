@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "jenkins": {
+      "source": "bagelhole/devops-security-agent-skills",
+      "sourceType": "github",
+      "skillPath": "devops/ci-cd/jenkins/SKILL.md",
+      "computedHash": "96e80ba2dc84fdcd774a1269cc1d287989bc3e306b387196048bc4863484ec73"
+    }
+  }
+}
