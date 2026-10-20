@@ -1,0 +1,58 @@
+services:
+  backend:
+    image: ${BACKEND_IMAGE:-pokemon-demo/backend:dev}
+    restart: unless-stopped
+    environment:
+      LISTEN_ADDRESS: ":8080"
+      POKEAPI_BASE_URL: https://pokeapi.co/api/v2
+    expose:
+      - "8080"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - app
+
+  frontend:
+    image: ${FRONTEND_IMAGE:-pokemon-demo/frontend:dev}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s
+    networks:
+      - app
+
+  database:
+    image: postgres:17-alpine
+    profiles: ["database"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pokemon}
+      POSTGRES_USER: ${POSTGRES_USER:-pokemon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-local-only-change-this}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app
+
+networks:
+  app:
+
+volumes:
+  postgres_data:
