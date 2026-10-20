@@ -248,3 +248,8 @@ Jenkins:
 ```sh
 npx skills add https://github.com/bagelhole/devops-security-agent-skills --skill jenkins --agent github-copilot -y
 ```
+
+## Demo
+
+See [demo.md](demo.md) for the Pokémon app architecture, local run instructions,
+Node.js/Vite details, AWS and partner-VM deployment, Jenkins setup, and Mermaid diagrams.

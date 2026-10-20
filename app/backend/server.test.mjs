@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
+import { once } from "node:events";
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
 
