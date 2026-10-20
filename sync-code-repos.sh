@@ -20,22 +20,31 @@ while IFS= read -r line || [[ -n "$line" ]]; do
     line=${line%"${line##*[![:space:]]}"}
     [[ -z "$line" || "$line" == \#* ]] && continue
 
-    url=${line%=}
+    url=${line%%=*}
+    url=${url%"${url##*[![:space:]]}"}
     if [[ "$url" != ssh://* && "$url" != *@*:* ]] || [[ "$url" == -* || "$url" == *[[:space:]]* ]]; then
         printf 'Invalid SSH repository URL: %s\n' "$line" >&2
         status=1
         continue
     fi
 
-    name=${url##*/}
-    name=${name##*:}
-    name=${name%.git}
+    name=
+    if [[ "$line" == *=* ]]; then
+        name=${line#*=}
+        name=${name#"${name%%[![:space:]]*}"}
+    fi
+    if [[ -z "$name" ]]; then
+        name=${url##*/}
+        name=${name##*:}
+        name=${name%.git}
+    fi
     if [[ -z "$name" || "$name" == . || "$name" == .. ]]; then
         printf 'Invalid repository directory name: %s\n' "$line" >&2
         status=1
         continue
     fi
-    target="./$name"
+    target=$name
+    [[ "$target" == /* ]] || target="./$target"
 
     if [[ -e "$target" || -L "$target" ]]; then
         if [[ ! -d "$target" || ! -e "$target/.git" ]]; then
