@@ -52,7 +52,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             status=1
             continue
         fi
-        if ! origin=$(git -C "$target" remote get-url origin </dev/null) || [[ "$origin" != "$url" ]]; then
+        if ! origin=$(git -C "$target" config --get-all remote.origin.url </dev/null) || [[ "${origin%%$'\n'*}" != "$url" ]]; then
             printf 'Skipping checkout with a different origin: %s\n' "$target" >&2
             status=1
             continue
