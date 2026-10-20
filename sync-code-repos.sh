@@ -57,8 +57,15 @@ while IFS= read -r line || [[ -n "$line" ]]; do
             status=1
             continue
         fi
+        if ! branch=$(git -C "$target" symbolic-ref --quiet HEAD </dev/null) ||
+            ! pull_remote=$(git -C "$target" config --get "branch.${branch#refs/heads/}.remote" </dev/null) ||
+            [[ "$pull_remote" != origin ]]; then
+            printf 'Skipping checkout whose current branch does not track origin: %s\n' "$target" >&2
+            status=1
+            continue
+        fi
         printf 'Pulling %s\n' "$target"
-        git -C "$target" pull --ff-only </dev/null || status=1
+        git -C "$target" pull --ff-only origin </dev/null || status=1
     else
         printf 'Cloning %s into %s\n' "$url" "$target"
         git clone -- "$url" "$target" </dev/null || status=1
