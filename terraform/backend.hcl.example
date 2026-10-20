@@ -1,0 +1,5 @@
+bucket       = "replace-with-your-unique-terraform-state-bucket"
+key          = "jenny-pokemon/demo/terraform.tfstate"
+region       = "us-east-1"
+encrypt      = true
+use_lockfile = true

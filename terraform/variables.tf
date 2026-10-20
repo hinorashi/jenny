@@ -1,10 +1,10 @@
-variable "admin_cidr" {
-  description = "CIDR allowed to SSH to the demo instance; use a trusted, narrow range."
-  type        = string
+variable "admin_cidrs" {
+  description = "Trusted IPv4 CIDR ranges allowed to SSH to the demo instance, including the Jenkins agent egress range when deploying over SSH."
+  type        = set(string)
 
   validation {
-    condition     = can(cidrhost(var.admin_cidr, 0))
-    error_message = "admin_cidr must be a valid IPv4 or IPv6 CIDR range."
+    condition     = length(var.admin_cidrs) > 0 && alltrue([for cidr in var.admin_cidrs : can(cidrnetmask(cidr))])
+    error_message = "admin_cidrs must contain at least one valid IPv4 CIDR range."
   }
 }
 
@@ -14,8 +14,8 @@ variable "app_cidr" {
   default     = "0.0.0.0/0"
 
   validation {
-    condition     = can(cidrhost(var.app_cidr, 0))
-    error_message = "app_cidr must be a valid IPv4 or IPv6 CIDR range."
+    condition     = can(cidrnetmask(var.app_cidr))
+    error_message = "app_cidr must be a valid IPv4 CIDR range."
   }
 }
 
@@ -35,4 +35,14 @@ variable "project_name" {
   description = "Prefix applied to infrastructure resource names and tags."
   type        = string
   default     = "jenny-pokemon"
+}
+
+variable "ssh_public_key" {
+  description = "OpenSSH public key for the Jenkins deployment/admin key pair; never provide a private key."
+  type        = string
+
+  validation {
+    condition     = length(trimspace(var.ssh_public_key)) > 0
+    error_message = "ssh_public_key must contain a non-empty OpenSSH public key."
+  }
 }

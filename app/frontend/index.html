@@ -124,6 +124,7 @@
         <div>
           <div class="heading"><h2 id="pokemon-title"></h2><span id="pokemon-number" class="number"></span></div>
           <div id="pokemon-types" class="types"></div>
+          <p>Base experience: <strong id="pokemon-experience"></strong></p>
           <p id="pokemon-description" class="description"></p>
           <ul id="pokemon-stats" class="stats"></ul>
         </div>
@@ -162,6 +163,7 @@
       function renderPokemon(pokemon) {
         document.querySelector("#pokemon-title").textContent = pokemon.name;
         document.querySelector("#pokemon-number").textContent = `#${String(pokemon.id).padStart(3, "0")}`;
+        document.querySelector("#pokemon-experience").textContent = pokemon.baseExperience;
         document.querySelector("#pokemon-description").textContent = pokemon.description || "No English description available.";
 
         const image = document.querySelector("#pokemon-image");

@@ -30,6 +30,8 @@ pipeline {
                     terraform -chdir=terraform fmt -check -recursive
                     terraform -chdir=terraform init -backend=false -input=false
                     terraform -chdir=terraform validate
+                    terraform -chdir=terraform/bootstrap init -backend=false -input=false
+                    terraform -chdir=terraform/bootstrap validate
                 '''
             }
         }
@@ -56,13 +58,13 @@ pipeline {
                         BACKEND_IMAGE="$IMAGE_REGISTRY/$IMAGE_NAMESPACE/pokemon-backend:$IMAGE_TAG"
                         FRONTEND_IMAGE="$IMAGE_REGISTRY/$IMAGE_NAMESPACE/pokemon-frontend:$IMAGE_TAG"
 
+                        trap 'docker logout "$IMAGE_REGISTRY" >/dev/null 2>&1 || true' EXIT
                         printf '%s' "$REGISTRY_PASSWORD" |
                             docker login "$IMAGE_REGISTRY" --username "$REGISTRY_USERNAME" --password-stdin
                         docker build --pull -t "$BACKEND_IMAGE" ./app/backend
                         docker build --pull -t "$FRONTEND_IMAGE" ./app/frontend
                         docker push "$BACKEND_IMAGE"
                         docker push "$FRONTEND_IMAGE"
-                        docker logout "$IMAGE_REGISTRY"
                     '''
                 }
             }
@@ -89,7 +91,8 @@ pipeline {
                             'mkdir -p /opt/pokemon-demo'
                         scp -o BatchMode=yes -o StrictHostKeyChecking=yes \
                             compose.yaml .deploy.env "$TARGET:/opt/pokemon-demo/"
-                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$TARGET" 'mv /opt/pokemon-demo/.deploy.env /opt/pokemon-demo/.env'
+                        ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$TARGET" \
+                            'mv /opt/pokemon-demo/.deploy.env /opt/pokemon-demo/.env.next'
 
                         if ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$TARGET" 'sh -s' <<'REMOTE'
                         set -eu
@@ -99,7 +102,7 @@ pipeline {
                             cp .env .env.previous
                             had_previous=true
                         fi
-                        if docker compose pull && docker compose up -d --remove-orphans; then
+                        if mv .env.next .env && docker compose pull && docker compose up -d --remove-orphans; then
                             attempt=0
                             while [ "$attempt" -lt 12 ]; do
                                 if docker compose exec -T frontend wget -q -O /dev/null http://127.0.0.1/healthz; then
@@ -136,7 +139,7 @@ REMOTE
     post {
         always {
             sh 'rm -f .deploy.env'
-            cleanWs()
+            deleteDir()
         }
     }
 }

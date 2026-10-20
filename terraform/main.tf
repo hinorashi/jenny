@@ -75,7 +75,7 @@ resource "aws_security_group" "instance" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description = "Pokédex web application"
+    description = "Pokedex web application"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -87,11 +87,11 @@ resource "aws_security_group" "instance" {
     from_port   = 22
     to_port     = 22
     protocol    = "tcp"
-    cidr_blocks = [var.admin_cidr]
+    cidr_blocks = var.admin_cidrs
   }
 
   egress {
-    description = "Outbound access for package installation, image pulls, and PokéAPI"
+    description = "Outbound access for packages, image pulls, and PokeAPI"
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
@@ -128,12 +128,22 @@ resource "aws_iam_instance_profile" "instance" {
   role = aws_iam_role.instance.name
 }
 
+resource "aws_key_pair" "deployment" {
+  key_name   = "${var.project_name}-deployment"
+  public_key = var.ssh_public_key
+
+  tags = {
+    Name = "${var.project_name}-deployment"
+  }
+}
+
 resource "aws_instance" "app" {
   ami                         = data.aws_ami.ubuntu.id
   instance_type               = var.instance_type
   subnet_id                   = aws_subnet.public.id
   vpc_security_group_ids      = [aws_security_group.instance.id]
   iam_instance_profile        = aws_iam_instance_profile.instance.name
+  key_name                    = aws_key_pair.deployment.key_name
   associate_public_ip_address = true
   user_data_replace_on_change = true
 
@@ -163,4 +173,6 @@ resource "aws_instance" "app" {
   tags = {
     Name = "${var.project_name}-app"
   }
+
+  depends_on = [aws_iam_role_policy_attachment.ssm]
 }

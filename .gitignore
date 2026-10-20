@@ -37,3 +37,11 @@ override.tf.json
 .terraformrc
 terraform.rc
 
+# Local application settings and generated build artifacts
+.env
+.env.*
+!.env.example
+terraform/backend.hcl
+*.tfplan
+app/backend/pokemon-api
+coverage.out

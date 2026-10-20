@@ -8,6 +8,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"regexp"
 	"strings"
@@ -97,7 +98,12 @@ func main() {
 	listenAddress := strings.TrimSpace(getenv("LISTEN_ADDRESS", defaultListenAddress))
 	apiBaseURL := strings.TrimRight(strings.TrimSpace(getenv("POKEAPI_BASE_URL", defaultAPIBaseURL)), "/")
 	server := &apiServer{
-		client:  &http.Client{Timeout: 6 * time.Second},
+		client: &http.Client{
+			Timeout: 6 * time.Second,
+			CheckRedirect: func(_ *http.Request, _ []*http.Request) error {
+				return http.ErrUseLastResponse
+			},
+		},
 		baseURL: apiBaseURL,
 		cache:   &responseCache{entries: make(map[string]cachedPokemon)},
 	}
@@ -170,8 +176,12 @@ func (s *apiServer) fetchPokemon(ctx context.Context, name string) (pokemon, err
 	}
 
 	if source.Species.URL != "" {
+		speciesURL, err := s.validateSpeciesURL(source.Species.URL)
+		if err != nil {
+			return pokemon{}, err
+		}
 		var species speciesResponse
-		if err := s.getJSON(ctx, source.Species.URL, &species); err != nil {
+		if err := s.getJSON(ctx, speciesURL, &species); err != nil {
 			return pokemon{}, err
 		}
 		for _, item := range species.FlavorTextEntries {
@@ -183,6 +193,25 @@ func (s *apiServer) fetchPokemon(ctx context.Context, name string) (pokemon, err
 	}
 
 	return result, nil
+}
+
+func (s *apiServer) validateSpeciesURL(value string) (string, error) {
+	base, err := url.Parse(s.baseURL)
+	if err != nil {
+		return "", fmt.Errorf("parse PokéAPI base URL: %w", err)
+	}
+	speciesURL, err := url.Parse(value)
+	if err != nil {
+		return "", fmt.Errorf("parse species URL: %w", err)
+	}
+	if speciesURL.Scheme != base.Scheme || speciesURL.Host != base.Host || speciesURL.User != nil {
+		return "", fmt.Errorf("species URL is outside the configured PokéAPI origin")
+	}
+	speciesPathPrefix := strings.TrimRight(base.EscapedPath(), "/") + "/pokemon-species/"
+	if !strings.HasPrefix(speciesURL.EscapedPath(), speciesPathPrefix) {
+		return "", fmt.Errorf("species URL is outside the PokéAPI species endpoint")
+	}
+	return speciesURL.String(), nil
 }
 
 func (s *apiServer) getJSON(ctx context.Context, url string, target any) error {

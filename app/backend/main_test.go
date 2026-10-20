@@ -105,3 +105,10 @@ func TestCleanDescription(t *testing.T) {
 		t.Fatalf("unexpected description: %q", got)
 	}
 }
+
+func TestValidateSpeciesURLRejectsOtherOrigins(t *testing.T) {
+	server := &apiServer{baseURL: "https://pokeapi.co/api/v2"}
+	if _, err := server.validateSpeciesURL("http://127.0.0.1/latest/meta-data"); err == nil {
+		t.Fatal("expected URL outside the PokéAPI origin to be rejected")
+	}
+}
