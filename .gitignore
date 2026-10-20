@@ -41,7 +41,8 @@ terraform.rc
 .env
 .env.*
 !.env.example
+node_modules/
+dist/
 terraform/backend.hcl
 *.tfplan
-app/backend/pokemon-api
 coverage.out

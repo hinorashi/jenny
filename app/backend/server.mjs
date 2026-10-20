@@ -10,7 +10,7 @@ const cache = new Map();
 const namePattern = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 
 const server = createServer(async (request, response) => {
-  const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
+  const url = new URL(request.url ?? "/", "http://localhost");
 
   if (request.method === "GET" && url.pathname === "/healthz") {
     response.writeHead(204).end();
@@ -106,11 +106,25 @@ async function fetchJSON(value) {
     if (!response.ok) {
       throw new UpstreamError(response.status);
     }
-    const body = await response.text();
-    if (body.length > 4 * 1024 * 1024) {
+    const maxResponseBytes = 4 * 1024 * 1024;
+    const contentLength = Number(response.headers.get("content-length"));
+    if (Number.isFinite(contentLength) && contentLength > maxResponseBytes) {
       throw new Error("Upstream response exceeded the size limit.");
     }
-    return JSON.parse(body);
+    const reader = response.body.getReader();
+    const chunks = [];
+    let totalBytes = 0;
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      totalBytes += value.byteLength;
+      if (totalBytes > maxResponseBytes) {
+        await reader.cancel();
+        throw new Error("Upstream response exceeded the size limit.");
+      }
+      chunks.push(value);
+    }
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
   } finally {
     clearTimeout(timeout);
   }
