@@ -23,9 +23,9 @@ pipeline {
     stages {
         stage('Test and validate') {
             steps {
-                dir('app/backend') {
-                    sh 'go test ./...'
-                }
+                sh 'npm ci --prefix app/frontend'
+                sh 'npm test --prefix app/backend'
+                sh 'npm run build --prefix app/frontend'
                 sh '''
                     terraform -chdir=terraform fmt -check -recursive
                     terraform -chdir=terraform init -backend=false -input=false

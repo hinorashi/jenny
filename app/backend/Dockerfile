@@ -1,14 +1,8 @@
-FROM golang:1.26-alpine AS build
+FROM node:22-alpine
 
-WORKDIR /src
-COPY go.mod ./
-COPY . ./
-RUN CGO_ENABLED=0 go build -trimpath -ldflags="-s -w" -o /out/pokemon-api .
-
-FROM alpine:3.22
-RUN apk add --no-cache ca-certificates && \
-    addgroup -S app && adduser -S -G app app
-COPY --from=build /out/pokemon-api /usr/local/bin/pokemon-api
-USER app
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --chown=node:node package.json server.mjs ./
+USER node
 EXPOSE 8080
-ENTRYPOINT ["/usr/local/bin/pokemon-api"]
+CMD ["node", "server.mjs"]

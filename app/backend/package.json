@@ -1,0 +1,14 @@
+{
+  "name": "jenny-pokemon-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node server.mjs",
+    "test": "node --test",
+    "test:watch": "node --test --watch"
+  },
+  "engines": {
+    "node": ">=22.12"
+  }
+}
