@@ -1,0 +1,4 @@
+https://git3.fsoft.com.vn/GROUP/CSGODCX/odcx-sub/ODCX-Infrastructure=infra
+ssh://git@git3.fsoft.com.vn:2022/GROUP/CSGODCX/odcx-sub/ODCX-DORA2.git=andon
+ssh://git@git3.fsoft.com.vn:2022/GROUP/CSGODCX/odcx-sub/odcx-itp.git=df
+ssh://git@git3.fsoft.com.vn:2022/GROUP/CSGODCX/odcx-sub/ODCX-Marketplace.git=takumi

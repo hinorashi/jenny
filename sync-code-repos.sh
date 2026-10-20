@@ -1,18 +1,21 @@
 #!/usr/bin/env bash
 set -u
 
-if (( $# > 1 )); then
-    printf 'Usage: %s [code-repos.txt]\n' "$0" >&2
+if (( $# > 2 )); then
+    printf 'Usage: %s [target-dir] [code-repos.txt]\n' "$0" >&2
     exit 1
 fi
 
-input=${1:-code-repos.txt}
+target_dir=${1:-.}
+input=${2:-code-repos.txt}
 if [[ ! -f "$input" || ! -r "$input" ]]; then
     printf 'Cannot read file: %s\n' "$input" >&2
     exit 1
 fi
 
 command -v git >/dev/null 2>&1 || { printf 'git is required.\n' >&2; exit 1; }
+
+mkdir -p -- "$target_dir" || exit 1
 
 status=0
 while IFS= read -r line || [[ -n "$line" ]]; do
@@ -22,8 +25,8 @@ while IFS= read -r line || [[ -n "$line" ]]; do
 
     url=${line%%=*}
     url=${url%"${url##*[![:space:]]}"}
-    if [[ "$url" != ssh://* && "$url" != *@*:* ]] || [[ "$url" == -* || "$url" == *[[:space:]]* ]]; then
-        printf 'Invalid SSH repository URL: %s\n' "$line" >&2
+    if [[ "$url" != https://* && "$url" != ssh://* && "$url" != *@*:* ]] || [[ "$url" == -* || "$url" == *[[:space:]]* ]]; then
+        printf 'Invalid repository URL (expected HTTPS or SSH): %s\n' "$line" >&2
         status=1
         continue
     fi
@@ -44,6 +47,7 @@ while IFS= read -r line || [[ -n "$line" ]]; do
         continue
     fi
     target=$name
+    [[ "$target" == /* ]] || target="$target_dir/$target"
     [[ "$target" == /* ]] || target="./$target"
 
     if [[ -e "$target" || -L "$target" ]]; then
