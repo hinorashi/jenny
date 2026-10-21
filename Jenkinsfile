@@ -8,8 +8,10 @@ pipeline {
     }
 
     parameters {
-        string(name: 'IMAGE_REGISTRY', defaultValue: 'ghcr.io', description: 'Container registry hostname')
-        string(name: 'IMAGE_NAMESPACE', defaultValue: 'hinorashi/jenny', description: 'Registry namespace/repository path')
+        choice(name: 'REGISTRY_AUTH', choices: ['ecr', 'credentials'], description: 'ECR instance-role login or Jenkins username/password credential')
+        string(name: 'IMAGE_REGISTRY', defaultValue: '', description: 'Registry hostname; use Terraform image_registry output for ECR')
+        string(name: 'IMAGE_NAMESPACE', defaultValue: 'jenny-pokemon', description: 'Use Terraform image_namespace output for ECR')
+        string(name: 'AWS_REGION', defaultValue: 'us-east-1', description: 'AWS region containing the ECR repositories')
         string(name: 'DEPLOY_HOST', defaultValue: '', description: 'Reachable public or private VM address')
         string(name: 'DEPLOY_USER', defaultValue: 'ubuntu', description: 'SSH user with Docker access')
         booleanParam(name: 'DEPLOY', defaultValue: false, description: 'Deploy after images are pushed (main branch only)')
@@ -40,13 +42,8 @@ pipeline {
             steps {
                 script {
                     env.IMAGE_TAG = sh(script: 'git rev-parse --short=12 HEAD', returnStdout: true).trim()
-                }
-                withCredentials([usernamePassword(
-                    credentialsId: env.REGISTRY_CREDENTIALS_ID,
-                    usernameVariable: 'REGISTRY_USERNAME',
-                    passwordVariable: 'REGISTRY_PASSWORD'
-                )]) {
-                    sh '''
+                    def buildAndPush = {
+                        sh '''
                         set -eu
                         case "$IMAGE_REGISTRY" in
                             *[!A-Za-z0-9._:-]*|"") echo "Invalid IMAGE_REGISTRY" >&2; exit 1 ;;
@@ -54,18 +51,46 @@ pipeline {
                         case "$IMAGE_NAMESPACE" in
                             *[!A-Za-z0-9._/-]*|"") echo "Invalid IMAGE_NAMESPACE" >&2; exit 1 ;;
                         esac
+                        case "$AWS_REGION" in
+                            *[!a-z0-9-]*|"") echo "Invalid AWS_REGION" >&2; exit 1 ;;
+                        esac
 
                         BACKEND_IMAGE="$IMAGE_REGISTRY/$IMAGE_NAMESPACE/pokemon-backend:$IMAGE_TAG"
                         FRONTEND_IMAGE="$IMAGE_REGISTRY/$IMAGE_NAMESPACE/pokemon-frontend:$IMAGE_TAG"
 
                         trap 'docker logout "$IMAGE_REGISTRY" >/dev/null 2>&1 || true' EXIT
-                        printf '%s' "$REGISTRY_PASSWORD" |
-                            docker login "$IMAGE_REGISTRY" --username "$REGISTRY_USERNAME" --password-stdin
-                        docker build --pull -t "$BACKEND_IMAGE" ./app/backend
-                        docker build --pull -t "$FRONTEND_IMAGE" ./app/frontend
-                        docker push "$BACKEND_IMAGE"
-                        docker push "$FRONTEND_IMAGE"
-                    '''
+                        if [ "$REGISTRY_AUTH" = ecr ]; then
+                            aws ecr get-login-password --region "$AWS_REGION" |
+                                docker login "$IMAGE_REGISTRY" --username AWS --password-stdin
+                        else
+                            printf '%s' "$REGISTRY_PASSWORD" |
+                                docker login "$IMAGE_REGISTRY" --username "$REGISTRY_USERNAME" --password-stdin
+                        fi
+                        build_and_push() {
+                            image=$1
+                            context=$2
+                            if [ "$REGISTRY_AUTH" = ecr ] && docker manifest inspect "$image" >/dev/null 2>&1; then
+                                printf 'Reusing immutable image %s\n' "$image"
+                            else
+                                docker build --pull -t "$image" "$context"
+                                docker push "$image"
+                            fi
+                        }
+                        build_and_push "$BACKEND_IMAGE" ./app/backend
+                        build_and_push "$FRONTEND_IMAGE" ./app/frontend
+                        '''
+                    }
+                    if (params.REGISTRY_AUTH == 'credentials') {
+                        withCredentials([usernamePassword(
+                            credentialsId: env.REGISTRY_CREDENTIALS_ID,
+                            usernameVariable: 'REGISTRY_USERNAME',
+                            passwordVariable: 'REGISTRY_PASSWORD'
+                        )]) {
+                            buildAndPush()
+                        }
+                    } else {
+                        buildAndPush()
+                    }
                 }
             }
         }
@@ -93,6 +118,11 @@ pipeline {
                             compose.yaml .deploy.env "$TARGET:/opt/pokemon-demo/"
                         ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$TARGET" \
                             'mv /opt/pokemon-demo/.deploy.env /opt/pokemon-demo/.env.next'
+
+                        if [ "$REGISTRY_AUTH" = ecr ]; then
+                            ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$TARGET" \
+                                "aws ecr get-login-password --region '$AWS_REGION' | docker login --username AWS --password-stdin '$IMAGE_REGISTRY'"
+                        fi
 
                         if ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$TARGET" 'sh -s' <<'REMOTE'
                         set -eu

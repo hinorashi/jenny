@@ -1,0 +1,37 @@
+services:
+  controller:
+    build:
+      context: .
+      dockerfile: controller.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      JAVA_OPTS: -Xmx1024m
+    volumes:
+      - jenkins_home:/var/jenkins_home
+
+  agent:
+    profiles: [agent]
+    build:
+      context: .
+      dockerfile: agent.Dockerfile
+    restart: unless-stopped
+    user: root
+    depends_on:
+      - controller
+    environment:
+      JENKINS_URL: http://controller:8080
+      JENKINS_AGENT_NAME: docker-terraform-ssh
+      JENKINS_AGENT_WORKDIR: /home/jenkins/agent
+      JENKINS_SECRET: ${JENKINS_AGENT_SECRET:-}
+      JENKINS_WEB_SOCKET: "true"
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+    volumes:
+      - agent_work:/home/jenkins/agent
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./known_hosts:/root/.ssh/known_hosts:ro
+
+volumes:
+  jenkins_home:
+  agent_work:

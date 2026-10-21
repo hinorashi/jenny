@@ -90,6 +90,14 @@ resource "aws_security_group" "instance" {
     cidr_blocks = var.admin_cidrs
   }
 
+  ingress {
+    description     = "Private SSH deployment from the Jenkins host"
+    from_port       = 22
+    to_port         = 22
+    protocol        = "tcp"
+    security_groups = [aws_security_group.jenkins.id]
+  }
+
   egress {
     description = "Outbound access for packages, image pulls, and PokeAPI"
     from_port   = 0
@@ -152,7 +160,7 @@ resource "aws_instance" "app" {
     set -euo pipefail
     export DEBIAN_FRONTEND=noninteractive
     apt-get update
-    apt-get install -y docker.io docker-compose-v2
+    apt-get install -y awscli docker.io docker-compose-v2
     systemctl enable --now docker
     usermod -aG docker ubuntu
     install -d -o ubuntu -g ubuntu -m 0750 /opt/pokemon-demo

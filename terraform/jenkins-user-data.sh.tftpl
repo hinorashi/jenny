@@ -1,0 +1,19 @@
+#!/bin/bash
+set -euo pipefail
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y docker.io docker-compose-v2
+systemctl enable --now docker
+usermod -aG docker ubuntu
+install -d -o root -g root -m 0700 /opt/jenkins
+cd /opt/jenkins
+printf '%s' '${compose}' | base64 --decode > compose.yaml
+printf '%s' '${controller_dockerfile}' | base64 --decode > controller.Dockerfile
+printf '%s' '${controller_init}' | base64 --decode > controller-init.groovy
+printf '%s' '${agent_dockerfile}' | base64 --decode > agent.Dockerfile
+printf '%s' '${dockerignore}' | base64 --decode > .dockerignore
+install -m 0600 /dev/null known_hosts
+umask 077
+printf 'AWS_REGION=%s\nJENKINS_AGENT_SECRET=\n' '${aws_region}' > .env
+docker compose --profile agent build
+docker compose up -d controller

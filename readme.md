@@ -67,3 +67,9 @@ Nếu thư mục đã tồn tại nhưng không phải Git checkout hoặc có `
 script báo lỗi và bỏ qua, không ghi đè. Khi một repo lỗi, script tiếp tục
 xử lý các repo còn lại và trả mã thoát khác 0. Với các repo trùng tên,
 hãy chỉ định thư mục riêng bằng `=git-folder`.
+
+## Demo
+
+See [demo.md](demo.md) for the Pokémon app architecture, local run instructions,
+Node.js/Vite details, Terraform-provisioned app/Jenkins EC2 hosts and ECR,
+partner-VM deployment, Jenkins Compose setup, and Mermaid diagrams.

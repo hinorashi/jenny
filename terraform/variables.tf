@@ -31,6 +31,12 @@ variable "instance_type" {
   default     = "t3.micro"
 }
 
+variable "jenkins_instance_type" {
+  description = "EC2 instance type for the dedicated Jenkins controller and Docker build agent Compose host."
+  type        = string
+  default     = "t3.medium"
+}
+
 variable "project_name" {
   description = "Prefix applied to infrastructure resource names and tags."
   type        = string
